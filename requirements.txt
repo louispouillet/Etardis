@@ -1,9 +1,9 @@
 Liste des dépendances nécessaires pour le projet :
 
-pandas
-numpy
-matplotlib
-seaborn
-scikit-learn
-streamlit
-ruff
+pandas : pour la manipulation et l'analyse des données.
+numpy : pour les opérations mathématiques et les tableaux multidimensionnels.
+matplotlib : pour la visualisation des données.
+seaborn : pour la visualisation statistique des données.
+scikit-learn : pour l'apprentissage automatique.
+streamlit : pour créer des applications web interactives.
+ruff : pour le linting(syntaxe et style) et la vérification du code.
