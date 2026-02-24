@@ -1,0 +1,9 @@
+Liste des dépendances nécessaires pour le projet :
+
+pandas
+numpy
+matplotlib
+seaborn
+scikit-learn
+streamlit
+ruff
