@@ -3,195 +3,193 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import joblib
+import numpy as np
 
 st.set_page_config(page_title="Tardis Dashboard", layout="wide")
 
+
+@st.cache_resource
 def load_model():
-    """Charger le modèle sauvegardé"""
-    model = joblib.load('model.joblib')
-    le_service = joblib.load('encoder_service.joblib')
-    le_dep = joblib.load('encoder_gare_dep.joblib')
-    le_arr = joblib.load('encoder_gare_arr.joblib')
-    features = joblib.load('features_list.joblib')
-    
+    model = joblib.load("model.joblib")
+    le_service = joblib.load("encoder_service.joblib")
+    le_dep = joblib.load("encoder_gare_dep.joblib")
+    le_arr = joblib.load("encoder_gare_arr.joblib")
+    features = joblib.load("features_list.joblib")
+
     return model, le_service, le_dep, le_arr, features
 
 
+model, le_service, le_dep, le_arr, features = load_model()
 
-model , le_service, le_dep, le_arr, features = load_model()
 
 def load_css():
     st.markdown(
         """
-    <style>
-    .stApp {
-        background-color: black;
-    h1 {
-        color : #464869;
-    }
-    h3 {
-        color : #9295BC;
-    }
-    p { border : solid;
-        border-color : #1C1C26;
-        padding : 20px;
-        background-color : #09090B;
-        border-radius : 10px;
-    }
-    .stMainBlockContainer {
-        width : 100%;
-    }
-    </style>
-    """,
+        <style>
+        .stApp {
+            background-color: black;
+        }
+        h1 {
+            color: #464869;
+        }
+        h3 {
+            color: #9295BC;
+        }
+        p {
+            border: solid;
+            border-color: #1C1C26;
+            padding: 20px;
+            background-color: #09090B;
+            border-radius: 10px;
+        }
+        </style>
+        """,
         unsafe_allow_html=True,
     )
 
 
 load_css()
 
-df = pd.read_csv(
-    "./cleaned_dataset.csv"
-)
-st.title("Tardis Dashboard")
-col_left, col_right = st.columns([2, 1])
-col_left2, col_right2 = st.columns([1, 1])
+
+df = pd.read_csv("cleaned_dataset.csv")
+
+st.title("Tardis Dashboard - Prédiction Retards SNCF")
+
+st.subheader("Statistiques Générales")
+
+col_left, col_right = st.columns([1, 1])
 
 with col_left:
     with st.container(border=True):
-        st.subheader("Trafic des trains", divider="gray")
-        st.write("Statistiques")
+        st.write("Distribution des retards au départ")
         plt.figure(figsize=(10, 3))
         sns.histplot(
-            df["Retard moyen de tous les trains au départ"], bins=2, kde=True, color="skyblue"
+            df["Retard moyen de tous les trains au départ"],
+            bins=20,
+            kde=True,
+            color="skyblue",
         )
         plt.title("Distribution des retards moyens au départ")
         plt.xlabel("Retard moyen (minutes)")
-        plt.ylabel("Nombre de trains")
+        plt.ylabel("Nombre de trajets")
         st.pyplot(plt.gcf())
         plt.close()
-        st.write("Statistiques")
-        plt.figure(figsize=(10, 5))
-        top_gare_retard = (
+
+with col_right:
+    with st.container(border=True):
+        st.write("Top 10 gares avec le plus de retards")
+        plt.figure(figsize=(10, 4))
+
+        top_gare = (
             df.groupby("Gare de départ")["Retard moyen de tous les trains au départ"]
             .mean()
             .sort_values(ascending=False)
             .head(10)
         )
 
-        sns.barplot(x=top_gare_retard.index, y=top_gare_retard.values, palette="magma")
-        plt.xticks(rotation=45)
+        sns.barplot(x=top_gare.index, y=top_gare.values, palette="magma")
+        plt.xticks(rotation=45, ha="right")
         plt.ylabel("Retard moyen (minutes)")
-        plt.title("Top 10 des gares avec les retards les plus élevés au départ")
+        plt.title("Top 10 des gares avec retards élevés")
         st.pyplot(plt.gcf())
         plt.close()
 
-with col_right:
-    with st.container(border=True):
-        st.subheader("Statistique", divider="gray")
-        st.write(
-            "Retard moyen : "
-            + str(df["Retard moyen de tous les trains au départ"].mean())
-            + " minutes",
-        )
-        st.write("Total des trains : " + str(len(df)))
-        st.write(
-            "Pourcentage des trains à l'heure : "
-            + str(
-                (df["Retard moyen de tous les trains au départ"] == 0).sum()
-                / len(df["Retard moyen de tous les trains au départ"])
-                * 100
-            )
-            + "%",
-        )
+
+st.write("---")
+st.subheader("Prédire un retard")
 
 with st.container(border=True):
-    st.subheader("Delay Prediction", divider="gray")
-    
-    départ = st.multiselect(
-        "Gare de départ",
-        [d for d in df["Gare de départ"].unique()],
-        max_selections=1,
-    )
-    arrivée = st.multiselect(
-        "Gare d'arrivée",
-        [d for d in df["Gare d'arrivée"].unique()],
-        max_selections=1,
-    )
-    mois = st.multiselect(
-        "Mois",
-        [n for n in df["Month"].unique()],
-        max_selections=1,
-    )
-    year = st.multiselect(
-        "Année",
-        [2026, 2027, 2028, 2029, 2030],
-        max_selections=1,
-    )
-    service = st.multiselect(
-        "Service",
-        [d for d in df["Service"].unique()],
-        max_selections=1,
-    )
-    nb_trains_annules = st.multiselect(
-        "Nombre de trains annulés",
-        [d for d in df["Nombre de trains annulés"].unique()],
-        max_selections=1,
-        default=2
-    )
-    nb_retard_15 = st.multiselect(
-        "Nombre de trains en retard de plus de 15 minutes",
-        [d for d in df["Nombre trains en retard > 15min"].unique()],
-        max_selections=1,
-        default=10
-    )
-    nb_retard_30 = st.multiselect(
-        "Nombre de trains en retard de plus de 30 minutes",
-        [d for d in df["Nombre trains en retard > 30min"].unique()],
-        max_selections=1,
-        default=10
-    )
-    nb_retard_60 = st.multiselect(
-        "Nombre de trains en retard de plus de 60 minutes",
-        [d for d in df["Nombre trains en retard > 60min"].unique()],
-        max_selections=1,
-        default=10
-    )
-    if st.button("Prédire"):
-        if not départ or not arrivée or not mois or not year:
-            st.warning("Merci de sélectionner une gare de départ, une gare d'arrivée, un mois et une année.")
-        else:
-            dep = départ[0]
-            arr = arrivée[0]
-            m = mois[0]
+    col1, col2 = st.columns([1, 1])
 
-            df_filtre = df[
-                (df["Gare de départ"] == dep) &
-                (df["Gare d'arrivée"] == arr) &
-                (df["Month"] == m)
-            ]
+    with col1:
+        service = st.selectbox(
+            "Service", df["Service"].unique(), help="Type de service"
+        )
 
-            if df_filtre.empty:
-                st.error("Aucun trajet trouvé pour ce mois.")
-            else:
-                total_trains = df_filtre["Nombre de circulations prévues"].sum()
-                trains_retard = df_filtre["Nombre de trains en retard à l'arrivée"].sum()
-                trains_annules = df_filtre["Nombre de trains annulés"].sum()
+        gare_dep = st.selectbox(
+            "Gare de départ",
+            sorted(df["Gare de départ"].unique()),
+            help="Sélectionnez la gare de départ",
+        )
 
-                proba_retard = (trains_retard / total_trains) * 100
+        duree = st.slider(
+            "Durée moyenne du trajet (minutes)",
+            min_value=int(df["Durée moyenne du trajet"].min()),
+            max_value=int(df["Durée moyenne du trajet"].max()),
+            value=141,
+            step=5,
+        )
 
-                st.metric(
-                    "Probabilité qu'un train soit en retard",
-                    f"{proba_retard:.1f} %",
-                )
+    with col2:
+        gare_arr = st.selectbox(
+            "Gare d'arrivée",
+            sorted(df["Gare d'arrivée"].unique()),
+            help="Sélectionnez la gare d'arrivée",
+        )
 
-                st.metric(
-                    "Nombre de trains analysés",
-                    int(total_trains),
-                )
+        nb_annules = st.slider(
+            "Nombre de trains annulés",
+            min_value=0,
+            max_value=int(df["Nombre de trains annulés"].max()),
+            value=2,
+            step=1,
+        )
 
-                st.metric(
-                    "Trains annulés",
-                    int(trains_annules),
-                )
-        
-        
+        nb_retard_15 = st.slider(
+            "Nombre de trains en retard > 15min",
+            min_value=0,
+            max_value=int(df["Nombre trains en retard > 15min"].max()),
+            value=10,
+            step=1,
+        )
+
+    nb_retard_30 = st.slider(
+        "Nombre de trains en retard > 30min",
+        min_value=0,
+        max_value=int(df["Nombre trains en retard > 30min"].max()),
+        value=5,
+        step=1,
+    )
+
+    nb_retard_60 = st.slider(
+        "Nombre de trains en retard > 60min",
+        min_value=0,
+        max_value=int(df["Nombre trains en retard > 60min"].max()),
+        value=1,
+        step=1,
+    )
+    mois = st.slider("Mois", min_value=1, max_value=12, value=3, step=1, format="%d")
+
+    if st.button(" PRÉDIRE LE RETARD", use_container_width=True):
+        try:
+            service_enc = le_service.transform([service])[0]
+            gare_dep_enc = le_dep.transform([gare_dep])[0]
+            gare_arr_enc = le_arr.transform([gare_arr])[0]
+
+            X = pd.DataFrame(
+                [
+                    [
+                        2026,
+                        mois,
+                        service_enc,
+                        gare_dep_enc,
+                        gare_arr_enc,
+                        duree,
+                        nb_annules,
+                        nb_retard_15,
+                        nb_retard_30,
+                        nb_retard_60,
+                    ]
+                ],
+                columns=features,
+            )
+
+            prediction = model.predict(X)[0]
+
+            col_result1, col_result2 = st.columns([2, 1])
+
+            with col_result1:
+                st.metric("RETARD ESTIMÉ", f"{prediction:.1f} minutes")
+
+        except Exception as e:
+            st.error(f"Erreur: {str(e)}")
