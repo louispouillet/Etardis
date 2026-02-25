@@ -2,9 +2,23 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
+import joblib
 
 st.set_page_config(page_title="Tardis Dashboard", layout="wide")
 
+def load_model():
+    """Charger le modèle sauvegardé"""
+    model = joblib.load('model.joblib')
+    le_service = joblib.load('encoder_service.joblib')
+    le_dep = joblib.load('encoder_gare_dep.joblib')
+    le_arr = joblib.load('encoder_gare_arr.joblib')
+    features = joblib.load('features_list.joblib')
+    
+    return model, le_service, le_dep, le_arr, features
+
+
+
+model , le_service, le_dep, le_arr, features = load_model()
 
 def load_css():
     st.markdown(
@@ -36,7 +50,7 @@ def load_css():
 load_css()
 
 df = pd.read_csv(
-    "/home/aurelie/Bureau/sncf/B-DAT-200-TLS-2-1-tardis-6/cleaned_dataset.csv"
+    "./cleaned_dataset.csv"
 )
 st.title("Tardis Dashboard")
 col_left, col_right = st.columns([2, 1])
